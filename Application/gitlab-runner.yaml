@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitlab-runner
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    chart: gitlab-runner
+    # https://gitlab.com/gitlab-org/charts/gitlab-runner
+    repoURL: https://charts.gitlab.io
+    targetRevision: v0.70.3
+    helm:
+      releaseName: gitlab-runner
+      values: |
+        gitlabUrl: "<gitlab-instance-url>"
+        concurrent: 2
+        securityContext:
+          capabilities:
+            drop: [""]
+        # https://docs.gitlab.com/runner/executors/kubernetes/#configure-runner-api-permissions
+        rbac:
+          create: true
+        runners:
+          name: ""
+          tags: "<runner-tag-in-ci>"
+          secret: gitlab-runner-secret
+          config: |
+            [[runners]]
+              environment = [ "HOME=/home/gitlab-runner", "FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY=true" ]
+              [runners.kubernetes]
+                helper_image = "docker.io/gitlab/gitlab-runner-helper:ubuntu-x86_64-v17.2.2"
+                image_pull_secrets = [ "<secret-name>" ]
+                service_account = "Default service account job/executor pods use to talk to Kubernetes API."
+              [[runners.kubernetes.volumes.empty_dir]]
+                name = "home"
+                mount_path = "/home/gitlab-runner"
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: gitlab-runner
+  syncPolicy:
+    automated:
+      prune: true
+    syncOptions:
+    - CreateNamespace=true
