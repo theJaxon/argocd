@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: zitadel
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  source:
+    chart: zitadel
+    repoURL: https://charts.zitadel.com
+    targetRevision: 8.11.1
+    helm:
+      releaseName: zitadel
+      valuesObject:
+        zitadel:
+          masterkey: ""
+          configmapConfig:
+            ExternalSecure: false
+            ExternalDomain: localhost
+            TLS:
+              Enabled: false
+            Database:
+              Postgres:
+                Host: postgresql-hl
+                Port: 5432
+                Database: zitadel
+                MaxOpenConns: 20
+                MaxIdleConns: 10
+                MaxConnLifetime: 30m
+                MaxConnIdleTime: 5m
+                User:
+                  Username: postgres
+                  SSL:
+                    Mode: disable
+                Admin:
+                  Username: postgres
+                  SSL:
+                    Mode: disable
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: identity
+  syncPolicy:
+    automated:
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
